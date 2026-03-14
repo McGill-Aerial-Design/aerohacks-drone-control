@@ -162,6 +162,12 @@ void loop() {
     else if (instruct == "gyroY") {client.print(String(gyroVY));}
     else if (instruct == "gMode") {client.print(String(mode));}
     else if (instruct == "vers") {client.print(FIRMWARE_VERSION);}
+    else if (instruct == "lg1") {digitalWrite(7, HIGH);}
+    else if (instruct == "lg0") {digitalWrite(7, LOW);}
+    else if (instruct == "lr1") {digitalWrite(8, HIGH);}
+    else if (instruct == "lr0") {digitalWrite(8, LOW);}
+    else if (instruct == "lb1") {digitalWrite(9, HIGH);}
+    else if (instruct == "lb0") {digitalWrite(9, LOW);}
     
     else if (instruct.startsWith("mode")) {
       instruct.remove(0, 4);
