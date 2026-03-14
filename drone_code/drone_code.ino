@@ -11,10 +11,10 @@ WiFiClient client;
 
 Adafruit_MPU6050 mpu;
 
-byte pinA = 5;
-byte pinB = 6;
+byte pinA = 4;
+byte pinB = 5;
 byte pinC = 3;
-byte pinD = 4;
+byte pinD = 6;
 
 byte mode = 0;
 //byte modeZ = 0;
@@ -22,14 +22,13 @@ byte mode = 0;
 const float MAX_ANGULAR_VELOCITY = 5;
 const float MAX_ANGLE = 20;
 const float MAX_SPEED = 1; // arbitrary change later
-//float GYRO_GAIN = 0.0000001;
-float P = 0.000001;
+const byte TURNING_THRUST_LIMIT = 50;
+float P = 0.02;
+float I = 0.00001;
+float D = 5;
 
-float targetAZ = 0;
-float targetVZ = 0;
-float targetZ = 0;
-float targetGyroVX = 0;
-float targetGyroVY = 0;
+float yaw = 0;
+
 float targetGyroX = 0;
 float targetGyroY = 0;
 
@@ -39,14 +38,11 @@ float accOffsetX = 0;
 float accOffsetY = 0;
 float accOffsetZ = 0;
 
-float vz = 0;
-float vx = 0;
-float vy = 0;
-float x = 0;
-float y = 0;
-float z = 0;
 float gyroX = 0;
 float gyroY = 0;
+float lastGyroX = 0;
+float lastGyroY = 0;
+float I_val = 0;
 
 int thrustA = 0;
 int thrustB = 0;
@@ -134,6 +130,9 @@ void loop() {
   unsigned int dt = newTime - lastTime;
   lastTime = newTime;
 
+  lastGyroX = gyroX;
+  lastGyroY = gyroY;
+
 
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
@@ -169,40 +168,12 @@ void loop() {
     else if (instruct == "gyroX") {client.print(String(gyroVX));}
     else if (instruct == "gyroY") {client.print(String(gyroVY));}
     else if (instruct == "gMode") {client.print(String(mode));}
-    //else if (instruct == "gModeZ") {client.print(String(modeZ));}
-    else if (instruct == "gz") {client.print(String(z));}
-    else if (instruct == "gvz") {client.print(String(vz));}
     
     else if (instruct.startsWith("mode")) {
       instruct.remove(0, 4);
       mode = instruct.toInt();
       Serial.print("New Mode: ");
       Serial.print(mode);
-    }
-    
-    //else if (instruct.startsWith("zmode")) {
-    //  instruct.remove(0, 4);
-    //  modeZ = instruct.toInt();
-    //}
-    
-    else if (instruct.startsWith("az")) {
-      instruct.remove(0, 2);
-      targetAZ = instruct.toInt();
-    }
-    
-    else if (instruct.startsWith("vz")) {
-      instruct.remove(0, 2);
-      targetVZ = instruct.toInt();
-    }
-    
-    else if (instruct.startsWith("gvx")) {
-      instruct.remove(0, 3);
-      targetGyroVX = instruct.toInt();
-    }
-    
-    else if (instruct.startsWith("gvy")) {
-      instruct.remove(0, 3);
-      targetGyroVY = instruct.toInt();
     }
     
     else if (instruct.startsWith("gx")) {
@@ -219,6 +190,23 @@ void loop() {
       instruct.remove(0, 5);
       P = instruct.toFloat();
     }
+    
+    else if (instruct.startsWith("gainI")) {
+      instruct.remove(0, 5);
+      I = instruct.toFloat();
+    }
+    
+    else if (instruct.startsWith("gainD")) {
+      instruct.remove(0, 5);
+      D = instruct.toFloat();
+    }
+    
+    else if (instruct.startsWith("yaw")) {
+      instruct.remove(0, 3);
+      yaw = instruct.toFloat();
+    }
+    
+    else if (instruct == "irst") {I_val = 0;}
 
     else if (instruct == "manT") {
       thrustA = client.readStringUntil(',').toInt();
@@ -240,11 +228,44 @@ void loop() {
     client.print("\n");
   }
 
+  float thrustOffA = 0;
+  float thrustOffB = 0;
+  float thrustOffC = 0;
+  float thrustOffD = 0;
+
   if (mode == 2){
-    thrustA += P * (gyroX - targetGyroX) * dt;
-    thrustB += P * (gyroX - targetGyroX) * dt;
-    thrustC -= P * (gyroX - targetGyroX) * dt;
-    thrustD -= P * (gyroX - targetGyroX) * dt;
+    I_val += (gyroX - targetGyroX) * dt;
+
+    thrustOffA -= P * (gyroX - targetGyroX) * dt;
+    thrustOffB -= P * (gyroX - targetGyroX) * dt;
+    thrustOffC += P * (gyroX - targetGyroX) * dt;
+    thrustOffD += P * (gyroX - targetGyroX) * dt;
+
+    thrustOffA -= I * I_val * dt;
+    thrustOffB -= I * I_val * dt;
+    thrustOffC += I * I_val * dt;
+    thrustOffD += I * I_val * dt;
+
+    thrustOffA += D * gyroVX * dt;
+    thrustOffB += D * gyroVX * dt;
+    thrustOffC -= D * gyroVX * dt;
+    thrustOffD -= D * gyroVX * dt;
+
+
+    thrustOffA -= P * (gyroY - targetGyroY) * dt;
+    thrustOffB += P * (gyroY - targetGyroY) * dt;
+    thrustOffC -= P * (gyroY - targetGyroY) * dt;
+    thrustOffD += P * (gyroY - targetGyroY) * dt;
+
+    thrustOffA -= I * I_val * dt;
+    thrustOffB += I * I_val * dt;
+    thrustOffC -= I * I_val * dt;
+    thrustOffD += I * I_val * dt;
+
+    thrustOffA += D * gyroVY * dt;
+    thrustOffB -= D * gyroVY * dt;
+    thrustOffC -= D * gyroVY * dt;
+    thrustOffD += D * gyroVY * dt;
   }
 
 
@@ -252,18 +273,11 @@ void loop() {
   if (thrustB < 0) {thrustB = 0;}
   if (thrustC < 0) {thrustC = 0;}
   if (thrustD < 0) {thrustD = 0;}
-  if (thrustA > 250) {thrustA = 250;}
-  if (thrustB > 250) {thrustB = 250;}
-  if (thrustC > 250) {thrustC = 250;}
-  if (thrustD > 250) {thrustD = 250;}
+  if (thrustA > 200) {thrustA = 200;}
+  if (thrustB > 200) {thrustB = 200;}
+  if (thrustC > 200) {thrustC = 200;}
+  if (thrustD > 200) {thrustD = 200;}
 
-  x += vx * dt;
-  y += vy * dt;
-  z += vz * dt;
-
-  vx += accX * dt;
-  vy += accY * dt;
-  vz += accZ * dt;
 
   if (mode == 0) {
     thrustA = 0;
@@ -272,12 +286,44 @@ void loop() {
     thrustD = 0;
   }
 
+  if (mode <= 1){
+    thrustOffA = 0;
+    thrustOffB = 0;
+    thrustOffC = 0;
+    thrustOffD = 0;
+  }
+
+  if (thrustOffA < -TURNING_THRUST_LIMIT) {thrustOffA = -TURNING_THRUST_LIMIT;}
+  if (thrustOffB < -TURNING_THRUST_LIMIT) {thrustOffB = -TURNING_THRUST_LIMIT;}
+  if (thrustOffC < -TURNING_THRUST_LIMIT) {thrustOffC = -TURNING_THRUST_LIMIT;}
+  if (thrustOffD < -TURNING_THRUST_LIMIT) {thrustOffD = -TURNING_THRUST_LIMIT;}
+  if (thrustOffA > TURNING_THRUST_LIMIT) {thrustOffA = TURNING_THRUST_LIMIT;}
+  if (thrustOffB > TURNING_THRUST_LIMIT) {thrustOffB = TURNING_THRUST_LIMIT;}
+  if (thrustOffC > TURNING_THRUST_LIMIT) {thrustOffC = TURNING_THRUST_LIMIT;}
+  if (thrustOffD > TURNING_THRUST_LIMIT) {thrustOffD = TURNING_THRUST_LIMIT;}
+
   //A.write(thrustA);
   //B.write(thrustB);
   //C.write(thrustC);
   //D.write(thrustD);
-  analogWrite(pinA, thrustA);
-  analogWrite(pinB, thrustB);
-  analogWrite(pinC, thrustC);
-  analogWrite(pinD, thrustD);
+
+  int newThrustA = thrustA + thrustOffA + yaw;
+  int newThrustB = thrustB + thrustOffB - yaw;
+  int newThrustC = thrustC + thrustOffC - yaw;
+  int newThrustD = thrustD + thrustOffD + yaw;
+
+
+  if (newThrustA < 0) {newThrustA = 0;}
+  if (newThrustB < 0) {newThrustB = 0;}
+  if (newThrustC < 0) {newThrustC = 0;}
+  if (newThrustD < 0) {newThrustD = 0;}
+  if (newThrustA > 250) {newThrustA = 250;}
+  if (newThrustB > 250) {newThrustB = 250;}
+  if (newThrustC > 250) {newThrustC = 250;}
+  if (newThrustD > 250) {newThrustD = 250;}
+
+  analogWrite(pinA, newThrustA);
+  analogWrite(pinB, newThrustB);
+  analogWrite(pinC, newThrustC);
+  analogWrite(pinD, newThrustD);
 }
