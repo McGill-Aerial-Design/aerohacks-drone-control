@@ -11,7 +11,7 @@ WiFiClient client;
 
 Adafruit_MPU6050 mpu;
 
-const String FIRMWARE_VERSION = "1.2";
+const String FIRMWARE_VERSION = "1.3";
 
 byte pinA = 4;
 byte pinB = 5;
@@ -60,7 +60,10 @@ void recalibrate(){
   digitalWrite(7, HIGH); // LED blue
   digitalWrite(8, LOW);
   digitalWrite(9, LOW);
-  
+
+  gyroX = 0;
+  gyroY = 0;
+
   gyroOffsetX = 0;
   gyroOffsetY = 0;
   accOffsetX = 0;
@@ -113,7 +116,7 @@ void setup() {
   recalibrate();
 
   WiFi.softAPConfig(apIP, apIP, netMsk);
-  WiFi.softAP("AeroHacks Drone 4", "skibidi123");
+  WiFi.softAP("AeroHacks Drone 15", "skibidi123");
   tcpServer.begin();
 
   Serial.println("ready");
