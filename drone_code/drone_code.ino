@@ -120,7 +120,7 @@ void setup() {
   recalibrate();
 
   WiFi.softAPConfig(apIP, apIP, netMsk);
-  WiFi.softAP("AeroHacks Drone 7", "skibidi123");
+  WiFi.softAP("AeroHacks Drone 18", "skibidi123");
   tcpServer.begin();
 
   Serial.println("ready");
@@ -137,7 +137,6 @@ void setup() {
 
 void loop() {
   unsigned long newTime = millis();
-  //float dt = (newTime - lastTime) / 1000;
   unsigned int dt = (newTime - lastTime);
   lastTime = newTime;
 
@@ -152,20 +151,6 @@ void loop() {
   float gyroVY = g.gyro.y - gyroOffsetY;
   gyroX -= gyroVX * dt;
   gyroY -= gyroVY * dt;
-  
-  float az = a.acceleration.z - accOffsetZ;
-  float ax = a.acceleration.x - accOffsetX;
-  float ay = a.acceleration.y - accOffsetY;
-
-  float y_acc  = atan2(ay, az) * 180/PI * 16;
-  float x_acc = atan2(-ax, sqrt(ay*ay + az*az)) * 180/PI * 16;
-
-  //yroX = 0.98*(gyroX  - gyroVX*dt) - 0.02*x_acc;
-  //gyroY = 0.98*(gyroY  - gyroVY*dt) - 0.02*y_acc;
-
-  //Serial.print(gyroX / 16);
-  //Serial.print(',');
-  //Serial.println(gyroY / 16);
   
 
   if (gyroX > MAX_ANGLE or gyroX < -MAX_ANGLE or gyroY > MAX_ANGLE or gyroY < -MAX_ANGLE) {
