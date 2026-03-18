@@ -18,6 +18,8 @@ unsigned long nextTime = 0;
 long joyOffsetX = 0;
 long joyOffsetY = 0;
 
+bool verboseComs = false;
+
 void recalibrate_joystick() {
   joyOffsetX = 0;
   joyOffsetX = 0;
@@ -35,9 +37,11 @@ void recalibrate_joystick() {
 String msg(String tx) {
   while (client.available()) {client.read();}
   client.print(tx + "\n");
-  Serial.println("sent: " + tx);
+  if (verboseComs) {Serial.println("sent: " + tx);}
   while (!client.available()) {delay(1);};
-  return client.readStringUntil('\n');
+  String rx = client.readStringUntil('\n');
+  if (verboseComs) {Serial.println("recv: " + rx);}
+  return rx;
 }
 
 void increment_base_thrust(int val) {
@@ -48,6 +52,13 @@ void increment_base_thrust(int val) {
 void set_base_thrust(int val) {
   String sval = String(val);
   msg("manT\n" + sval + "," + sval + "," + sval + "," + sval);
+}
+
+void set_yaw(int y) {
+  yaw = y;
+  msg("yaw" + String(yaw));
+  Serial.print("set yaw: ");
+  Serial.println(yaw);
 }
 
 
@@ -134,13 +145,16 @@ void loop() {
 
     else if (instruct.startsWith("y")){
       instruct.remove(0, 1);
-      yaw = instruct.toInt();
-      msg("yaw" + String(yaw));
+      set_yaw(instruct.toInt());
     }
 
     else if (instruct.startsWith("-")){
       instruct.remove(0, 1);
       Serial.println(msg(instruct));
+    }
+
+    else if (instruct == "v") {
+      verboseComs = !verboseComs;
     }
 
     else if (instruct == "") {
@@ -149,6 +163,11 @@ void loop() {
       Serial.println(yawMode);
     }
   }
+
+
+
+
+
 
   int vx = (vx + analogRead(35) - joyOffsetX) / 2;
   int vy = (vy + analogRead(32) - joyOffsetY) / 2;
@@ -174,16 +193,14 @@ void loop() {
     if (rightIsClicked) {
       Serial.println("right");
       if (yawMode) {
-        yaw += 2;
-        msg("yaw" + String(yaw));
+        set_yaw(yaw+1);
       }
       else {increment_base_thrust(5);}
     }
     if (leftIsClicked) {
       Serial.println("left");
       if (yawMode) {
-        yaw -= 2;
-        msg("yaw" + String(yaw));
+        set_yaw(yaw-1);
       }
       else {increment_base_thrust(-5);}
     }
