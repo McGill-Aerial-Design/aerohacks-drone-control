@@ -52,6 +52,8 @@ void increment_base_thrust(int val) {
 void set_base_thrust(int val) {
   String sval = String(val);
   msg("manT\n" + sval + "," + sval + "," + sval + "," + sval);
+  Serial.print("set thrust: ");
+  Serial.println(val);
 }
 
 void set_yaw(int y) {
@@ -108,7 +110,6 @@ void setup() {
   Serial.println("calib done");
   msg("gainI0");
   msg("mode2");
-  //set_base_thrust(20);
 
   nextTime = millis() + PERIOD;
 }
@@ -140,7 +141,7 @@ void loop() {
 
     else if (instruct.startsWith("t")){
       instruct.remove(0, 1);
-      msg("manT\n" + instruct + "," + instruct + "," + instruct + "," + instruct);
+      set_base_thrust(instruct.toInt());
     }
 
     else if (instruct.startsWith("y")){
@@ -191,14 +192,12 @@ void loop() {
     nextTime = millis() + PERIOD;
 
     if (rightIsClicked) {
-      Serial.println("right");
       if (yawMode) {
         set_yaw(yaw+1);
       }
       else {increment_base_thrust(5);}
     }
     if (leftIsClicked) {
-      Serial.println("left");
       if (yawMode) {
         set_yaw(yaw-1);
       }
@@ -210,8 +209,6 @@ void loop() {
 
     msg("gx" + String(targetX));
     msg("gy" + String(targetY));
-
-    //print(msg("angX"));
 
     rightIsClicked = false;
     leftIsClicked = false;
