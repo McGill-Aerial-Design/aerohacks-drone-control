@@ -3,9 +3,9 @@
 const byte joyPinRX = 35;
 const byte joyPinRY = 32;
 const byte joyPinRC = 27;
-const byte joyPinLX = 0; // tbd
-const byte joyPinLY = 0; // tbd
-const byte joyPinLC = 0; // tbd
+const byte joyPinLX = 39;
+const byte joyPinLY = 36;
+const byte joyPinLC = 14;
 
 String ssid = "";
 String password = "skibidi123";
@@ -71,6 +71,7 @@ void set_base_thrust(int val) {
 }
 
 void set_yaw(int y) {
+  if (y == yaw) {return;}
   yaw = y;
   msg("yaw" + String(yaw));
   Serial.print("set yaw: ");
@@ -192,6 +193,10 @@ void loop() {
   int vlx = analogRead(joyPinLX) - joyOffsetLX;
   int vly = analogRead(joyPinLY) - joyOffsetLY;
 
+  if (vly < 0) {
+    vly *= 2;
+  }
+
   if (digitalRead(34) == LOW) {rightIsClicked = true;}
   if (digitalRead(33) == LOW) {leftIsClicked = true;}
   if (digitalRead(joyPinRC) == LOW) {leftJoyIsClicked = true;}
@@ -228,8 +233,19 @@ void loop() {
 
     msg("gx" + String(targetX));
     msg("gy" + String(targetY));
-    set_yaw(yaw + vlx / 50);
-    increment_base_thrust(vly / 50);
+
+    /* derivative controls were too dificult
+    if (abs(vlx/ 150) >= 1) {
+      set_yaw(yaw + vlx / 150);
+    }
+    if (abs(vly/ 70) >= 1) {
+      increment_base_thrust(vly / 70);
+    }
+    */
+
+    set_yaw(vlx / 30);
+    set_base_thrust(vly / 12);
+
 
     rightIsClicked = false;
     leftIsClicked = false;
